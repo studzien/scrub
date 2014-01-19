@@ -163,8 +163,10 @@ call(Wsdl, Operation, Header, Msg) when is_record(Wsdl, wsdl) ->
     end.
 
 
-mk_msg(_Prefix, _Operation, ListOfData) ->
-    ListOfData.                       % rest of record data
+mk_msg(Prefix, Operation, ListOfData) ->
+    list_to_tuple([list_to_atom(Prefix++":"++Operation), % record name
+                   []                                    % anyAttribs
+                   | ListOfData]).                       % rest of record data
 
 get_operation([#operation{operation = X} = Op|_], X) ->
     {ok, Op};
@@ -249,11 +251,11 @@ call_attach(#wsdl{operations = Operations, model = Model},
 
 		    {ContentType, Request} =
                         make_request_body(XmlMessage, Attachments, Action),
-                    ?dbg("+++ Request = ~p~n", [Request]),
+                    %?dbg("+++ Request = ~p~n", [Request]),
 		    HttpRes = http_request(URL, Action, Request,
                                            HttpClientOptions, HttpHeaders,
                                            ContentType),
-                    ?dbg("+++ HttpRes = ~p~n", [HttpRes]),
+                    %?dbg("+++ HttpRes = ~p~n", [HttpRes]),
 		    case HttpRes of
 			{ok, _Code, _ReturnHeaders, Body} ->
 			    parseMessage(Body, Model);
@@ -351,11 +353,11 @@ initModelFile(ConfigFile) ->
 priv_dir() ->
     code:priv_dir(scrub).
 
-initModel2(WsdlFile, ErlsomOptions, Path, Import, AddFiles) ->
-    WsdlName = filename:join([Path, "wsdl.xsd"]),
+initModel2(WsdlFile, ErlsomOptions, _Path, Import, AddFiles) ->
+    WsdlName = filename:join(["/tmp", "wsdl.xsd"]),
     IncludeWsdl = {"http://schemas.xmlsoap.org/wsdl/", "wsdl", WsdlName},
-    {ok, WsdlModel} = erlsom:compile_xsd_file(
-                        filename:join([Path, "wsdl11soap12.xsd"]),
+    {ok, WsdlModel} = erlsom:compile_xsd(
+                        scrub_xsd:soap(),
                         [{prefix, "soap"},
                          {include_files, [IncludeWsdl]}]),
     %% uncomment to generate the wsdl11soap12.hrl file
@@ -368,10 +370,10 @@ initModel2(WsdlFile, ErlsomOptions, Path, Import, AddFiles) ->
                                      Options, {undefined, []}),
     %% TODO: add files as required
     %% now compile envelope.xsd, and add Model
-    {ok, EnvelopeModel} = erlsom:compile_xsd_file(
-                            filename:join([Path, "soap-envelope.xsd"]),
+    {ok, EnvelopeModel} = erlsom:compile_xsd(
+                            scrub_xsd:soap_envelope(),
                             [{prefix, "soap"},
-                             {include_files, [{"http://www.w3.org/XML/1998/namespace", undefined, filename:join([Path, "xml.xsd"])}]}]),
+                             {include_files, [{"http://www.w3.org/XML/1998/namespace", undefined, filename:join(["/tmp", "xml.xsd"])}]}]),
     SoapModel = erlsom:add_model(EnvelopeModel, Model),
     %% uncomment to generate the soap-envelope.hrl file
     %% erlsom:write_hrl(EnvelopeModel, "/home/kalski/test/soap-envelope.hrl"),
